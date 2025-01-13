@@ -31,6 +31,19 @@ class IndexCollection:
         self.diagnostic = (
             [] if config.data.diagnostic is None else OmegaConf.to_container(config.data.diagnostic, resolve=True)
         )
+        self.targets = [] if config.data.targets is None else OmegaConf.to_container(config.data.targets, resolve=True)
+        self.known_future_variables = (
+            []
+            if config.training.known_future_variables is None
+            else OmegaConf.to_container(config.training.known_future_variables, resolve=True)
+        )
+        self.additional_model_variables = []
+        if config.training.get("additional_model_variables", None) is not None:
+            self.additional_model_variables = OmegaConf.to_container(
+                config.training.additional_model_variables, resolve=True
+            )
+        defined_variables = set.union(set(self.forcing), set(self.diagnostic), set(self.targets))
+        self.prognostic = [v for v in self.name_to_index.keys() if v not in defined_variables]
         # config.data.remapped is an optional dictionary with every remapper as one entry
         self.remapped = (
             dict()
@@ -43,6 +56,10 @@ class IndexCollection:
             f"Diagnostic and forcing variables overlap: {set(self.diagnostic).intersection(self.forcing)}. ",
             "Please drop them at a dataset-level to exclude them from the training data.",
         )
+        assert set(self.diagnostic).isdisjoint(self.targets), (
+            f"Diagnostic and target variables overlap: {set(self.diagnostic).intersection(self.targets)}. ",
+            "Please drop them at a dataset-level to exclude them from the training data.",
+        )
         assert set(self.remapped).isdisjoint(self.diagnostic), (
             "Remapped variable overlap with diagnostic variables. Not implemented.",
         )
@@ -51,10 +68,16 @@ class IndexCollection:
             f"{set(self.remapped).difference(self.name_to_index)}",
         )
         name_to_index_model_input = {
-            name: i for i, name in enumerate(key for key in self.name_to_index if key not in self.diagnostic)
+            name: i
+            for i, name in enumerate(key for key in self.name_to_index if key in self.forcing or key in self.prognostic)
         }
         name_to_index_model_output = {
-            name: i for i, name in enumerate(key for key in self.name_to_index if key not in self.forcing)
+            name: i
+            for i, name in enumerate(
+                key
+                for key in self.name_to_index
+                if key in self.prognostic or key in self.diagnostic or key in self.targets
+            )
         }
         # remove remapped variables from internal data and model indices
         name_to_index_internal_data_input = {
@@ -83,18 +106,30 @@ class IndexCollection:
                 # if key is in forcing we need to remove it from forcing_remapped after remapped variables have been added
                 self.forcing_remapped.remove(key)
 
-        self.data = DataIndex(self.diagnostic, self.forcing, self.name_to_index)
+        self.data = DataIndex(self.diagnostic, self.forcing, self.targets, self.name_to_index)
         self.internal_data = DataIndex(
             self.diagnostic,
             self.forcing_remapped,
+            self.targets,
             name_to_index_internal_data_input,
         )  # internal after the remapping applied to data (training)
-        self.model = ModelIndex(self.diagnostic, self.forcing, name_to_index_model_input, name_to_index_model_output)
+        self.model = ModelIndex(
+            self.diagnostic,
+            self.forcing,
+            self.targets,
+            name_to_index_model_input,
+            name_to_index_model_output,
+            self.known_future_variables,
+            self.additional_model_variables,
+        )
         self.internal_model = ModelIndex(
             self.diagnostic,
             self.forcing_remapped,
+            self.targets,
             name_to_index_internal_model_input,
             name_to_index_internal_model_output,
+            self.known_future_variables,
+            self.additional_model_variables,
         )  # internal after the remapping applied to model (inference)
 
     def __repr__(self) -> str:

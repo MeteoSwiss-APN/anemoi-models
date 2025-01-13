@@ -55,7 +55,7 @@ class AnemoiModelInterface(torch.nn.Module):
         statistics: dict,
         data_indices: dict,
         metadata: dict,
-        supporting_arrays: dict = None,
+        supporting_arrays: dict,
     ) -> None:
         super().__init__()
         self.config = config
@@ -64,8 +64,8 @@ class AnemoiModelInterface(torch.nn.Module):
         self.graph_data = graph_data
         self.statistics = statistics
         self.metadata = metadata
-        self.supporting_arrays = supporting_arrays if supporting_arrays is not None else {}
         self.data_indices = data_indices
+        self.supporting_arrays = supporting_arrays
         self._build_model()
 
     def _build_model(self) -> None:
@@ -83,7 +83,6 @@ class AnemoiModelInterface(torch.nn.Module):
         # Instantiate the model
         self.model = instantiate(
             self.config.model.model,
-            supporting_arrays = self.supporting_arrays,
             model_config=self.config,
             data_indices=self.data_indices,
             graph_data=self.graph_data,
