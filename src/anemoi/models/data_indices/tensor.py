@@ -15,7 +15,15 @@ class BaseTensorIndex:
     """Indexing for variables in index as Tensor."""
 
     def __init__(
-        self, *, prognostic: list[str], diagnostic: list[str], forcing: list[str], targets: list[str], includes: list[str], name_to_index: dict[str, int], **kwargs
+        self,
+        *,
+        prognostic: list[str],
+        diagnostic: list[str],
+        forcing: list[str],
+        targets: list[str],
+        includes: list[str],
+        name_to_index: dict[str, int],
+        **kwargs,
     ) -> None:
         """Initialize indexing tensors from includes using name_to_index.
 
@@ -39,11 +47,17 @@ class BaseTensorIndex:
         assert set(includes).issubset(
             self.name_to_index.keys(),
         ), f"Data indexing has invalid entries {[var for var in includes if var not in self.name_to_index]}, not in dataset."
-        self.prognostic = prognostic
-        self.diagnostic = diagnostic
-        self.forcing = forcing
-        self.targets = targets
-        self.full = torch.tensor([name_to_index[name] for name in includes], dtype=torch.int)
+        self.prognostic = self._build_idx_from_list(prognostic)
+        self.diagnostic = self._build_idx_from_list(diagnostic)
+        self.forcing = self._build_idx_from_list(forcing)
+        self.targets = self._build_idx_from_list(targets)
+        self.full = self._build_idx_from_list(includes)
+
+    def _build_idx_from_list(self, var_list):
+        sorted_variables = torch.Tensor(sorted(i for name, i in self.name_to_index.items() if name in var_list)).to(
+            torch.int
+        )
+        return sorted_variables
 
     def __len__(self) -> int:
         return len(self.full)
@@ -84,27 +98,61 @@ class InputTensorIndex(BaseTensorIndex):
     """Indexing for input variables."""
 
     def __init__(
-        self, *, prognostic: list[str], diagnostic: list[str], forcing: list[str], targets: list[str], includes: list[str], name_to_index: dict[str, int], **kwargs
+        self,
+        *,
+        prognostic: list[str],
+        diagnostic: list[str],
+        forcing: list[str],
+        targets: list[str],
+        includes: list[str],
+        name_to_index: dict[str, int],
+        **kwargs,
     ) -> None:
         super().__init__(
-            prognostic=prognostic, diagnostic=diagnostic, forcing=forcing, targets=targets, includes=includes, name_to_index=name_to_index
+            prognostic=prognostic,
+            diagnostic=diagnostic,
+            forcing=forcing,
+            targets=targets,
+            includes=includes,
+            name_to_index=name_to_index,
         )
-        self._known_future_variables = kwargs.pop("known_future_variables", [])
+        self._known_future_variables = kwargs.pop(
+            "known_future_variables", []
+        )  # only used to compute the length of the tensor
         self._additional_model_variables = kwargs.pop("additional_model_variables", [])
-    
+
     def __len__(self) -> int:
-        return len(self.prognostic) + len(self.forcing) + 2*len(self._known_future_variables) + len(self._additional_model_variables)
+        return (
+            len(self.prognostic)
+            + len(self.forcing)
+            + 2 * len(self._known_future_variables)
+            + len(self._additional_model_variables)
+        )
 
 
 class OutputTensorIndex(BaseTensorIndex):
     """Indexing for output variables."""
 
     def __init__(
-        self, *, prognostic: list[str], diagnostic: list[str], forcing: list[str], targets: list[str], includes: list[str], name_to_index: dict[str, int],
+        self,
+        *,
+        prognostic: list[str],
+        diagnostic: list[str],
+        forcing: list[str],
+        targets: list[str],
+        includes: list[str],
+        name_to_index: dict[str, int],
+        **kwargs,
     ) -> None:
         super().__init__(
-            prognostic=prognostic, diagnostic=diagnostic, forcing=forcing, targets=targets, includes=includes, name_to_index=name_to_index
+            prognostic=prognostic,
+            diagnostic=diagnostic,
+            forcing=forcing,
+            targets=targets,
+            includes=includes,
+            name_to_index=name_to_index,
+            **kwargs,
         )
 
     def __len__(self) -> int:
-        return len(self.prognostic) + len(self.diagnostic)
+        return len(self.full)

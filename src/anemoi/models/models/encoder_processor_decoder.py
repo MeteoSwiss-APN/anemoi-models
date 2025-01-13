@@ -112,9 +112,11 @@ class AnemoiModelEncProcDec(nn.Module):
         self._internal_output_idx = data_indices.internal_model.output.prognostic
 
     def _assert_matching_indices(self, data_indices: dict) -> None:
-        hypothetical_input_idx = len(data_indices.internal_model.output.full) - len(
-            data_indices.internal_model.output.diagnostic)-len(self.data_indices.internal_model.output.targets)
-        assert len(self._internal_output_idx) == hypothetical_input_idx (
+        hypothetical_input_idx = (
+            len(data_indices.internal_model.output.full)
+            - len(data_indices.internal_model.output.diagnostic)
+        )
+        assert len(self._internal_output_idx) == hypothetical_input_idx, (
             f"Mismatch between the internal data indices ({len(self._internal_output_idx)}) and "
             f"the internal output indices excluding diagnostic and target variables "
             f"({hypothetical_input_idx})",
@@ -222,7 +224,7 @@ class AnemoiModelEncProcDec(nn.Module):
             .clone()
         )
 
-        # residual connection (just for the prognostic variables)
+        # translates to the right scale (just for prognostic variables)
         x_out[..., self._internal_output_idx] += x[:, -1, :, :, self._internal_input_idx]
 
         for bounding in self.boundings:

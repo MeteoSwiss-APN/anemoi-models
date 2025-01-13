@@ -76,7 +76,7 @@ class IndexCollection:
             for i, name in enumerate(
                 key
                 for key in self.name_to_index
-                if key in self.prognostic or key in self.diagnostic or key in self.targets
+                if key in self.prognostic or key in self.diagnostic
             )
         }
         # remove remapped variables from internal data and model indices

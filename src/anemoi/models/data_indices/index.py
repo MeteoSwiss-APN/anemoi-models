@@ -107,7 +107,7 @@ class ModelIndex(BaseIndex):
         )
 
         self.output = OutputTensorIndex(
-            includes=diagnostic + self._prognostic + targets,
+            includes=diagnostic + self._prognostic,
             forcing=forcing,
             targets=targets,
             diagnostic=diagnostic,
